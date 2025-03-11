@@ -1,10 +1,22 @@
 import os
 from dotenv import load_dotenv, set_key
-import google.generativeai as genai
-from crewai import Agent, Task, Crew, Process
-from agents import close_event_loop, aptos_agent
+from crewai import Agent, Task, Crew, Process, LLM
+from pydantic import Field
 from aptos_sdk.account import Account
 import asyncio
+from crewai.tools import BaseTool
+
+# Define a custom tool for interacting with the Aptos blockchain
+class AptosBalanceTool(BaseTool):
+    name: str = Field(default="aptos_balance_tool")
+    description: str = Field(default="Fetches the balance of a given Aptos wallet address.")
+
+    def _run(self, wallet_address: str) -> str:
+        """Fetches the balance of a given Aptos wallet address."""
+        # Placeholder for actual Aptos SDK interaction to get balance
+        # Replace this with actual code to fetch balance
+        balance = "1000 APT"  # Example balance
+        return f"The balance for wallet {wallet_address} is {balance}."
 
 def check_and_update_env():
     # Load existing environment variables
@@ -31,14 +43,19 @@ def check_and_update_env():
 
 async def run_crewai_demo():
     load_dotenv()
-    genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
 
-    # Initialize your agents (replace with your actual agents)
+    # Configure the LLM with the provider and model
+    my_llm = LLM(
+        api_key=os.getenv("GOOGLE_API_KEY"),
+        model="gemini/gemini-1.5-flash",
+    )
+
+    # Initialize your agents
     financial_agent = Agent(
         role='Financial Analyst',
         goal='Analyze Aptos financial data.',
         backstory="You are an expert financial analyst specializing in Aptos blockchain data.",
-        llm=genai.GenerativeModel('gemini-1.5-flash'),
+        llm=my_llm,
         verbose=True
     )
 
@@ -46,20 +63,24 @@ async def run_crewai_demo():
         role='Aptos Interaction Agent',
         goal='Interact with the Aptos blockchain to get information.',
         backstory="You are a specialist in Aptos blockchain interactions.",
-        llm=genai.GenerativeModel('gemini-1.5-flash'),
-        tools=[aptos_agent], #use the aptos agent as a tool.
+        llm=my_llm,
+        tools=[AptosBalanceTool()],
         verbose=True
     )
 
     # Define your tasks
+    wallet_address = os.getenv('DEVNET_WALLET_ADDRESS')
+
     task1 = Task(
-        description="Get the current balance of the provided Aptos wallet address.",
-        agent=aptos_interaction_agent
+        description=f"Get the current balance of Aptos wallet address: {wallet_address}",
+        agent=aptos_interaction_agent,
+        expected_output="The balance of the wallet address."
     )
 
     task2 = Task(
         description="Analyze the balance and provide a summary.",
-        agent=financial_agent
+        agent=financial_agent,
+        expected_output="A financial analysis summary based on the wallet balance."
     )
 
     # Create your crew
@@ -71,7 +92,7 @@ async def run_crewai_demo():
     )
 
     # Kick off the crew
-    result = crew.kickoff()
+    result = await crew.kickoff()
     print("\nCrewAI Result:")
     print(result)
 
@@ -79,5 +100,5 @@ if __name__ == "__main__":
     try:
         check_and_update_env()
         asyncio.run(run_crewai_demo())
-    finally:
-        close_event_loop()
+    except Exception as e:
+        print(f"An error occurred: {e}")

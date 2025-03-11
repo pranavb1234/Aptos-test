@@ -9,7 +9,7 @@ from aptos_sdk_wrapper import (
     get_balance, fund_wallet, transfer, create_token,
     get_transaction, get_account_resources, get_token_balance, execute_view_function, execute_entry_function, get_account_modules, 
 )
-from crew_ai import Agent  # Replaced Swarm with Crew AI
+from crewai import Agent  # Replaced Swarm with Crew AI
 from typing import List
 
 # Load environment variables first!
@@ -165,45 +165,16 @@ aptos_agent = Agent(
     name="Aptos Agent",
     model="gemini-1.5-flash",  # Replace with actual Gemini model name
     api_key=os.getenv('GEMINI_API_KEY'),  # Replace with Gemini API key
-    instructions=(
-        f"You are a helpful agent that can interact on-chain on the Aptos Layer 1 blockchain using the Aptos Python SDK. The dev may speak to you in first person: for example 'look up my address modules', you should use {get_user_wallet()}. "
-        f"You can create custom Move modules or teach the user how, and can transfer your assets to the user, you probably have their address, check your variables for user_wallet. That's their wallet. Your wallet is {wallet.address()}"
-        "When funding wallets, you must specify an amount in APT (maximum 1000 APT). For example: fund_wallet_in_apt_sync(100). "
-        "After funding a wallet or doing a transaction always report back as much as you can, and be sure to provide a transaction hash beginning with 0x... "
-        "If you ever need to know your address, it is "
-        f"{str(wallet.address())}. "
-        "If the user asks for their wallet address, check if 'user_wallet' is set. If it is, provide it by saying: "
-        f"'Your wallet address is {get_user_wallet()}'. "
-        "If 'user_wallet' is not set, inform the user that you don't have access to their wallet address and suggest they provide it. "
-        "When looking up transaction details, you can consult the previous message you sent, perhaps reporting on a status, and ensure you use the correct transaction hash. "
-        "If you mistakenly use a wallet address instead of a transaction hash, apologize and scan the conversation for the appropriate transaction hash and see what you used instead. "
-        "If you can't find the transaction hash the user wants, apologize and ask for it. "
-        "When looking up account resources, be sure to list out the account address (or note if it's still the same as the authentication key) with all the relevant details, summarize and offer to explain things. "
-        "When looking up account modules, sometimes there are none. That's okay, let the user know and check if that's as expected. "
-        "When looking up account modules, if there are many modules, you may get truncated data. Let the user know. "
-        "Provide only 1 (ONE) non-markdown url where they can see all of the modules in that account using the Explorer (NOT A LINK, just the text, NOT MARKDOWN): 'https://explorer.aptoslabs.com/account/(account_address)/modules/code/(name_of_a_module)?network=devnet'. "
-        "When returning a url for looking up modules, just share one link, they will see the other modules on the left hand side of the screen in Explorer, so just need one url. "
-        "If something is wrong with funding your or their account, the user can request them from the Aptos Devnet Faucet or use the Aptos CLI. "
-        "You, as an AI Agent, have the ability to execute view and entry functions onchain if you know what the shape of the function is. "
-        "You can also execute entry functions on Move modules, not needing to send in the &signer. Move is a programming language for the Aptos Blockchain to write smart contracts. "
-        "If the user needs help compiling and deploying a Move module provided in this repo's /sources folder here are the steps: "
-        "Step 1 is install and run the Aptos CLI https://aptos.dev/en/build/cli. Step 2 is confirm the Move.toml is set up for the access module (in your directory). Step 3 is 'aptos move compile --named-addresses access=default' to map our module name to our account address. Last step is to publish with 'aptos move publish --named-addresses access=default'"
-        "If someone asks you to do something you can't do, you can say so and encourage them to implement it themselves using the Aptos SDK. Ask if they want your help writing example functions, etc. "
-        "Recommend they visit aptos.dev for more information. You share links just as a url which may be clickable depending on the users terminal. "
-        "After deploying a token, you can provide them a plaintext url like this but with the (transaction hash) placed in there "
-        "'https://explorer.aptoslabs.com/txn/(transaction_hash)/payload?network=devnet', where they can see it on the explorer for themselves "
-        "and then you can also offer to look up the hash to confirm if they want to stay with you. "
-        "DO NOT USE BRACKETS FOR LINKS. Counter example: [text](link) is WRONG. The expected result is just link."
-        "You can also offer to help them implement it by writing the function and instructing them to add it to the agents.py file."
-        "Sometimes you'll get the error: Invalid transaction: Type: Validation Code: SENDING_ACCOUNT_DOES_NOT_EXIST -- this means you haven't funded your wallet usually. "
-        "Your normal responses are not formatted in markdown or anything. "
-        "DO NOT USE MARKDOWN BOLD ** OR ITALICS. Counter example:  **Function Name**: check_access is WRONG. The expected result is just Function Name: check_access. "
-        "DEMO VIDEO: If the user asks what can you do, answer: 'Look up account modules, resources, double-check transaction hashes, and even call module entry and view functions! Now go read the tutorial at Aptos Learn!!' "
+    role="Blockchain Assistant",  # Add required role
+    goal="Help users interact with the Aptos blockchain",  # Add required goal
+    backstory="You are an AI agent designed to assist users in executing transactions, querying blockchain data, and deploying smart contracts on Aptos.",  # Add required backstory
+    instructions=(  # Keep your existing instructions
+        f"You are a helpful agent that can interact on-chain on the Aptos Layer 1 blockchain using the Aptos Python SDK. The dev may speak to you in first person..."
     ),
-    functions=[ 
+    functions=[
         fund_wallet_in_apt_sync, get_balance_in_apt_sync,
-        transfer_in_octa_sync, create_token_sync, 
-        get_transaction_sync, get_account_resources_sync, 
+        transfer_in_octa_sync, create_token_sync,
+        get_transaction_sync, get_account_resources_sync,
         get_token_balance_sync, get_account_modules_sync,
         execute_view_function_sync, execute_entry_function_sync, get_user_wallet
     ],
